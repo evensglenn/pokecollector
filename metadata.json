@@ -1,0 +1,7 @@
+{
+  "name": "PokéCollector",
+  "description": "Scan en beheer je Pokémon-kaartencollectie met AI-identificatie en realtime waardebepaling.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

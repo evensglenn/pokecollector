@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "PokemonCard": {
+      "title": "PokemonCard",
+      "description": "Details of a specific Pokemon card in a user's collection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the card" },
+        "name": { "type": "string", "description": "Name of the Pokemon" },
+        "setName": { "type": "string", "description": "Name of the expansion set" },
+        "cardNumber": { "type": "string", "description": "Card number within the set" },
+        "rarity": { "type": "string", "description": "Rarity of the card" },
+        "type": { "type": "string", "description": "Pokemon type (e.g., Fire, Water)" },
+        "hp": { "type": "string", "description": "HP of the Pokemon" },
+        "stage": { "type": "string", "description": "Card stage (e.g., Basic, Stage 1)" },
+        "weakness": { "type": "string", "description": "Weakness of the Pokemon" },
+        "resistance": { "type": "string", "description": "Resistance of the Pokemon" },
+        "retreatCost": { "type": "string", "description": "Retreat cost" },
+        "evolutionInfo": { "type": "string", "description": "Information about its evolution stage" },
+        "estimatedValue": { "type": "number", "description": "Estimated market value in EUR" },
+        "priceHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "month": { "type": "string" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "imageUrl": { "type": "string", "description": "URL to the card image" },
+        "quantity": { "type": "integer", "description": "Number of copies owned" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last time the quantity was updated" }
+      },
+      "required": ["name", "setName", "cardNumber", "quantity"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/cards/{cardId}": {
+      "schema": "PokemonCard",
+      "description": "User's personal collection of Pokemon cards"
+    }
+  }
+}

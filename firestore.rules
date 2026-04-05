@@ -1,0 +1,57 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: /users/{userId}/cards
+// Document ID: {cardId} (usually set-number)
+// Fields:
+//   - id: string (required)
+//   - name: string (required)
+//   - setName: string (required)
+//   - cardNumber: string (required)
+//   - rarity: string (optional)
+//   - type: string (optional)
+//   - evolutionInfo: string (optional)
+//   - estimatedValue: number (optional)
+//   - imageUrl: string (optional)
+//   - quantity: number (required, >= 0)
+//   - updatedAt: timestamp (required)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidCard(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.setName is string && data.setName.size() > 0 &&
+             data.cardNumber is string &&
+             data.quantity is int && data.quantity >= 0 &&
+             data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      
+      match /cards/{cardId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidCard(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
