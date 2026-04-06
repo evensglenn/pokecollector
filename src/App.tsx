@@ -301,11 +301,17 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
       const card = await identifyCard(base64);
       setScanResult({ card, image: imageUrl });
     } catch (err: any) {
-      console.error("Scan error:", err);
-      if (err.message?.includes('403') || err.message?.includes('API_KEY')) {
+      console.error("Scan error details:", err);
+      const errorMessage = err.message || "";
+      
+      if (errorMessage.includes('403') || errorMessage.includes('API_KEY')) {
         setError("API Key fout (403). Controleer je Gemini API Key in de instellingen.");
+      } else if (errorMessage.includes('429')) {
+        setError("Te veel verzoeken (429). Wacht een minuutje en probeer het opnieuw.");
+      } else if (errorMessage.includes('quota')) {
+        setError("API Quota overschreden. Probeer het later opnieuw.");
       } else {
-        setError("Identificatie mislukt. Probeer het opnieuw met betere verlichting.");
+        setError("Identificatie mislukt. Probeer het opnieuw met betere verlichting of controleer je internetverbinding.");
       }
     } finally {
       setIsScanning(false);
