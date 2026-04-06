@@ -3,7 +3,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, increment, getDocFromServer } from 'firebase/firestore';
 import { auth, db, login, logout } from './lib/firebase';
-import { identifyCard, IdentifiedCard, fetchCardDetailsByText } from './lib/gemini';
+import { identifyCard, IdentifiedCard, fetchCardDetailsByText, resetAI } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LineChart, 
@@ -32,7 +32,8 @@ import {
   Layers,
   Check,
   RefreshCw,
-  Calendar
+  Calendar,
+  Settings
 } from 'lucide-react';
 import { cn } from './lib/utils';
 
@@ -180,6 +181,80 @@ const ScanResultPreview = ({ initialCard, imageUrl, onConfirm, onCancel }: { ini
   );
 };
 
+const SettingsModal = ({ onClose }: { onClose: () => void }) => {
+  const [apiKey, setApiKey] = useState(localStorage.getItem('GEMINI_API_KEY') || '');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    localStorage.setItem('GEMINI_API_KEY', apiKey);
+    setSaved(true);
+    resetAI();
+    setTimeout(() => {
+      setSaved(false);
+      onClose();
+    }, 1500);
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl p-8"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold dark:text-white flex items-center gap-2">
+            <Settings size={24} className="text-slate-400" />
+            Instellingen
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Gemini API Key</label>
+            <input 
+              type="password"
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder="Voer je API key in..."
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition-all dark:text-white"
+            />
+            <p className="mt-2 text-[10px] text-slate-500 leading-relaxed">
+              Deze sleutel wordt lokaal in je browser opgeslagen. Je kunt een gratis sleutel aanmaken via de <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-yellow-500 hover:underline">Google AI Studio</a>.
+            </p>
+          </div>
+
+          <button 
+            onClick={handleSave}
+            disabled={saved}
+            className={cn(
+              "w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2",
+              saved ? "bg-green-500 text-white" : "bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg shadow-yellow-500/20"
+            )}
+          >
+            {saved ? (
+              <>
+                <Check size={20} />
+                Opgeslagen!
+              </>
+            ) : (
+              "Instellingen Opslaan"
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image: string) => void, onClose: () => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -225,8 +300,13 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
     try {
       const card = await identifyCard(base64);
       setScanResult({ card, image: imageUrl });
-    } catch (err) {
-      setError("Identificatie mislukt. Probeer het opnieuw met betere verlichting.");
+    } catch (err: any) {
+      console.error("Scan error:", err);
+      if (err.message?.includes('403') || err.message?.includes('API_KEY')) {
+        setError("API Key fout (403). Controleer je Gemini API Key in de instellingen.");
+      } else {
+        setError("Identificatie mislukt. Probeer het opnieuw met betere verlichting.");
+      }
     } finally {
       setIsScanning(false);
     }
@@ -529,6 +609,7 @@ const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, 
 export default function App() {
   const [user, loadingAuth] = useAuthState(auth);
   const [showScanner, setShowScanner] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [selectedCard, setSelectedCard] = useState<PokemonCard | null>(null);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'value' | 'newest'>('newest');
@@ -661,6 +742,9 @@ export default function App() {
               <img src={user.photoURL || ''} className="w-6 h-6 rounded-full" />
               <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{user.displayName}</span>
             </div>
+            <button onClick={() => setShowSettings(true)} className="p-2.5 text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-colors">
+              <Settings size={22} />
+            </button>
             <button onClick={logout} className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors">
               <LogOut size={22} />
             </button>
@@ -824,6 +908,9 @@ export default function App() {
             onConfirm={handleConfirmDelete}
             onCancel={() => setConfirmDelete(null)}
           />
+        )}
+        {showSettings && (
+          <SettingsModal onClose={() => setShowSettings(false)} />
         )}
       </AnimatePresence>
     </div>

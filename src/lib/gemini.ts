@@ -1,6 +1,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (aiInstance) return aiInstance;
+  
+  const apiKey = localStorage.getItem('GEMINI_API_KEY') || process.env.GEMINI_API_KEY;
+  
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
+    throw new Error("GEMINI_API_KEY is missing. Please set it in the settings or environment.");
+  }
+  
+  aiInstance = new GoogleGenAI({ apiKey });
+  return aiInstance;
+}
+
+export function resetAI() {
+  aiInstance = null;
+}
 
 export interface PricePoint {
   month: string;
@@ -25,6 +42,7 @@ export interface IdentifiedCard {
 }
 
 export async function identifyCard(base64Image: string): Promise<IdentifiedCard> {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: [
@@ -97,6 +115,7 @@ export async function identifyCard(base64Image: string): Promise<IdentifiedCard>
 }
 
 export async function fetchCardDetailsByText(name: string, setName: string, cardNumber: string, year: string): Promise<Partial<IdentifiedCard>> {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Geef de details voor de volgende Pokemon kaart: ${name} uit de set ${setName} met nummer ${cardNumber} uit het jaar ${year}.
