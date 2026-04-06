@@ -150,6 +150,40 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
   );
 };
 
+const ConfirmationModal = ({ title, message, onConfirm, onCancel }: { title: string, message: string, onConfirm: () => void, onCancel: () => void }) => (
+  <motion.div 
+    initial={{ opacity: 0 }} 
+    animate={{ opacity: 1 }} 
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-[60] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
+    onClick={onCancel}
+  >
+    <motion.div 
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl"
+      onClick={e => e.stopPropagation()}
+    >
+      <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">{title}</h3>
+      <p className="text-slate-500 dark:text-slate-400 mb-6">{message}</p>
+      <div className="flex gap-3">
+        <button 
+          onClick={onCancel}
+          className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+        >
+          Annuleren
+        </button>
+        <button 
+          onClick={onConfirm}
+          className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors"
+        >
+          Verwijderen
+        </button>
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
 const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, onUpdate: (id: string, qty: number) => void, onDelete: (id: string) => void, onClose: () => void }) => {
   return (
     <motion.div 
@@ -163,7 +197,7 @@ const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, 
         className="bg-white dark:bg-slate-800 w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="relative h-56 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center overflow-hidden">
+        <div className="relative h-48 bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center overflow-hidden">
           {card.imageUrl ? (
             <img src={card.imageUrl} className="w-full h-full object-cover opacity-40 blur-sm" referrerPolicy="no-referrer" />
           ) : (
@@ -171,7 +205,7 @@ const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, 
           )}
           <div className="absolute inset-0 flex items-center justify-center p-6">
              <div className="bg-white dark:bg-slate-900 p-2 rounded-xl shadow-xl rotate-[-2deg]">
-                <div className="w-36 aspect-[3/4] bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center overflow-hidden">
+                <div className="w-28 aspect-[3/4] bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center overflow-hidden">
                   {card.imageUrl ? (
                     <img src={card.imageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
@@ -180,15 +214,11 @@ const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, 
                 </div>
              </div>
              <div className="ml-6 text-white">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-3xl font-bold leading-tight">{card.name}</h2>
-                  {card.hp && <span className="text-xl font-black text-white/90">{card.hp} HP</span>}
-                </div>
-                <p className="text-white/80 font-medium">{card.setName} • {card.cardNumber}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-bold uppercase tracking-wider">{card.rarity}</span>
-                  <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-bold uppercase tracking-wider">{card.type}</span>
-                  {card.stage && <span className="px-2 py-0.5 bg-white/20 rounded text-xs font-bold uppercase tracking-wider">{card.stage}</span>}
+                <h2 className="text-3xl font-bold leading-tight">{card.name}</h2>
+                <div className="mt-1 flex items-center gap-2 text-white/80 font-medium">
+                  <span>{card.setName}</span>
+                  <span>•</span>
+                  <span>{card.cardNumber}</span>
                 </div>
              </div>
           </div>
@@ -198,6 +228,71 @@ const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, 
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Card Details Section */}
+          <section>
+            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Layers size={14} />
+              Kaart Details
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Set</div>
+                <div className="text-sm font-bold dark:text-slate-100 truncate">{card.setName}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Nummer</div>
+                <div className="text-sm font-bold dark:text-slate-100">{card.cardNumber}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Zeldzaamheid</div>
+                <div className="text-sm font-bold dark:text-slate-100">{card.rarity}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Type</div>
+                <div className="text-sm font-bold dark:text-slate-100">{card.type}</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Pokemon Info Section */}
+          <section>
+            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Info size={14} />
+              Pokémon Informatie
+            </h3>
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-4">
+              <div className="grid grid-cols-2 gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">HP</div>
+                  <div className="text-lg font-bold text-slate-900 dark:text-slate-100">{card.hp || 'N/A'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Fase</div>
+                  <div className="text-lg font-bold text-slate-900 dark:text-slate-100">{card.stage || 'Basis'}</div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+                <span className="text-sm text-slate-500">Evolutie</span>
+                <span className="text-sm font-semibold dark:text-slate-100">{card.evolutionInfo || 'Geen data'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-4 pt-1">
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Zwakte</div>
+                  <div className="text-sm font-bold dark:text-slate-100">{card.weakness || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Weerstand</div>
+                  <div className="text-sm font-bold dark:text-slate-100">{card.resistance || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Retreat</div>
+                  <div className="text-sm font-bold dark:text-slate-100">{card.retreatCost || '-'}</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Market Value Section */}
           <section>
             <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -251,34 +346,6 @@ const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, 
             </div>
           </section>
 
-          {/* Pokemon Info Section */}
-          <section>
-            <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Info size={14} />
-              Pokémon Details
-            </h3>
-            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
-                <span className="text-sm text-slate-500">Evolutie</span>
-                <span className="text-sm font-semibold dark:text-slate-100">{card.evolutionInfo || 'Geen data'}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-4 pt-1">
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Zwakte</div>
-                  <div className="text-sm font-bold dark:text-slate-100">{card.weakness || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Weerstand</div>
-                  <div className="text-sm font-bold dark:text-slate-100">{card.resistance || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Retreat</div>
-                  <div className="text-sm font-bold dark:text-slate-100">{card.retreatCost || '-'}</div>
-                </div>
-              </div>
-            </div>
-          </section>
-
           {/* Inventory Management */}
           <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-500/10 rounded-2xl border border-yellow-100 dark:border-yellow-500/20">
             <div className="font-bold text-slate-900 dark:text-slate-100">Aantal in bezit</div>
@@ -319,6 +386,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'value' | 'newest'>('newest');
   const [filterType, setFilterType] = useState<string>('Alle');
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string, title: string, message: string } | null>(null);
 
   const collectionRef = user ? collection(db, 'users', user.uid, 'cards') : null;
   const [collectionSnap, loadingCollection] = useCollection(
@@ -366,10 +434,11 @@ export default function App() {
     if (!user) return;
     const cardRef = doc(db, 'users', user.uid, 'cards', id);
     if (qty === 0) {
-      if (confirm("Deze kaart uit je verzameling verwijderen?")) {
-        await deleteDoc(cardRef);
-        setSelectedCard(null);
-      }
+      setConfirmDelete({
+        id,
+        title: "Kaart verwijderen?",
+        message: "Weet je zeker dat je deze kaart uit je verzameling wilt verwijderen?"
+      });
     } else {
       await setDoc(cardRef, { quantity: qty, updatedAt: serverTimestamp() }, { merge: true });
       if (selectedCard?.id === id) {
@@ -380,9 +449,21 @@ export default function App() {
 
   const deleteCard = async (id: string) => {
     if (!user) return;
-    if (confirm("Weet je zeker dat je deze kaart wilt verwijderen?")) {
-      await deleteDoc(doc(db, 'users', user.uid, 'cards', id));
+    setConfirmDelete({
+      id,
+      title: "Kaart verwijderen?",
+      message: "Weet je zeker dat je deze kaart definitief wilt verwijderen uit je verzameling?"
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!user || !confirmDelete) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'cards', confirmDelete.id));
       setSelectedCard(null);
+      setConfirmDelete(null);
+    } catch (error) {
+      console.error("Error deleting card:", error);
     }
   };
 
@@ -587,6 +668,14 @@ export default function App() {
             onUpdate={updateQuantity} 
             onDelete={deleteCard}
             onClose={() => setSelectedCard(null)} 
+          />
+        )}
+        {confirmDelete && (
+          <ConfirmationModal 
+            title={confirmDelete.title}
+            message={confirmDelete.message}
+            onConfirm={handleConfirmDelete}
+            onCancel={() => setConfirmDelete(null)}
           />
         )}
       </AnimatePresence>
