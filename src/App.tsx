@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, increment, getDocFromServer } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, increment, getDocFromServer, getDocs } from 'firebase/firestore';
 import { auth, db, login, logout } from './lib/firebase';
 import { identifyCard, IdentifiedCard, fetchCardDetailsByText, resetAI } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
@@ -661,13 +661,54 @@ export default function App() {
   const [sortBy, setSortBy] = useState<'name' | 'value' | 'newest'>('newest');
   const [filterType, setFilterType] = useState<string>('Alle');
   const [confirmDelete, setConfirmDelete] = useState<{ id: string, title: string, message: string } | null>(null);
+  const [cardsData, setCardsData] = useState<PokemonCard[]>([]);
+  const [loadingCollection, setLoadingCollection] = useState(false);
+  const [collectionError, setCollectionError] = useState<any>(null);
 
-  const collectionRef = user ? collection(db, 'users', user.uid, 'cards') : null;
-  const [collectionSnap, loadingCollection] = useCollection(
-    collectionRef ? query(collectionRef, orderBy('updatedAt', 'desc')) : null
-  );
+  // Load from cache on mount
+  useEffect(() => {
+    if (user) {
+      const cached = localStorage.getItem(`cards_${user.uid}`);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          // Convert string timestamps back to objects with toMillis for sorting
+          const processed = parsed.map((c: any) => ({
+            ...c,
+            updatedAt: c.updatedAt ? { toMillis: () => c.updatedAt.seconds * 1000 } : null
+          }));
+          setCardsData(processed);
+        } catch (e) {
+          console.error("Error parsing cache:", e);
+        }
+      }
+    }
+  }, [user]);
 
-  const cards = (collectionSnap?.docs.map(doc => ({ id: doc.id, ...doc.data() } as PokemonCard)) || [])
+  const fetchCards = async () => {
+    if (!user) return;
+    setLoadingCollection(true);
+    setCollectionError(null);
+    try {
+      const collectionRef = collection(db, 'users', user.uid, 'cards');
+      const snapshot = await getDocs(collectionRef);
+      const fetchedCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PokemonCard));
+      setCardsData(fetchedCards);
+      // Save to cache
+      localStorage.setItem(`cards_${user.uid}`, JSON.stringify(fetchedCards));
+    } catch (error: any) {
+      console.error("Firestore Fetch Error:", error);
+      setCollectionError(error);
+    } finally {
+      setLoadingCollection(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCards();
+  }, [user]);
+
+  const cards = [...cardsData]
     .filter(c => {
       const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.setName.toLowerCase().includes(search.toLowerCase());
       const matchesType = filterType === 'Alle' || c.type === filterType;
@@ -676,10 +717,13 @@ export default function App() {
     .sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       if (sortBy === 'value') return b.estimatedValue - a.estimatedValue;
-      return 0; // Default is newest from Firestore query
+      // newest (default)
+      const timeA = a.updatedAt?.toMillis?.() || 0;
+      const timeB = b.updatedAt?.toMillis?.() || 0;
+      return timeB - timeA;
     });
 
-  const types = ['Alle', ...new Set(collectionSnap?.docs.map(doc => doc.data().type).filter(Boolean))];
+  const types = ['Alle', ...new Set(cardsData.map(c => c.type).filter(Boolean))];
 
   const handleScan = async (identified: IdentifiedCard, image: string) => {
     if (!user) return;
@@ -701,6 +745,7 @@ export default function App() {
         updatedAt: serverTimestamp()
       });
     }
+    fetchCards(); // Refresh after scan
     setShowScanner(false);
   };
 
@@ -715,6 +760,7 @@ export default function App() {
       });
     } else {
       await setDoc(cardRef, { quantity: qty, updatedAt: serverTimestamp() }, { merge: true });
+      setCardsData(prev => prev.map(c => c.id === id ? { ...c, quantity: qty } : c));
       if (selectedCard?.id === id) {
         setSelectedCard(prev => prev ? { ...prev, quantity: qty } : null);
       }
@@ -734,6 +780,7 @@ export default function App() {
     if (!user || !confirmDelete) return;
     try {
       await deleteDoc(doc(db, 'users', user.uid, 'cards', confirmDelete.id));
+      setCardsData(prev => prev.filter(c => c.id !== confirmDelete.id));
       setSelectedCard(null);
       setConfirmDelete(null);
     } catch (error) {
@@ -784,6 +831,14 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4">
+            <button 
+              onClick={fetchCards} 
+              disabled={loadingCollection}
+              className="p-2.5 text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-500/10 rounded-xl transition-colors disabled:opacity-50"
+              title="Vernieuwen"
+            >
+              <RefreshCw size={22} className={loadingCollection ? "animate-spin" : ""} />
+            </button>
             <div className="hidden sm:flex items-center gap-3 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
               <img src={user.photoURL || ''} className="w-6 h-6 rounded-full" />
               <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{user.displayName}</span>
@@ -859,12 +914,39 @@ export default function App() {
           </div>
         )}
 
+        {/* Quota Error Banner */}
+        {collectionError && cardsData.length > 0 && (
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-800 rounded-2xl flex items-center gap-3">
+            <div className="bg-red-100 dark:bg-red-800 p-2 rounded-full">
+              <Info className="text-red-500" size={16} />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-bold text-red-900 dark:text-red-100">Dagelijkse limiet bereikt</div>
+              <div className="text-xs text-red-600 dark:text-red-400">Je ziet nu je laatst opgeslagen collectie. Nieuwe wijzigingen worden pas morgen gesynchroniseerd.</div>
+            </div>
+          </div>
+        )}
+
         {/* Grid */}
-        {loadingCollection ? (
+        {loadingCollection && cardsData.length === 0 ? (
           <div className="flex justify-center py-20">
             <Loader2 className="animate-spin text-yellow-500" size={48} />
           </div>
-        ) : cards.length === 0 ? (
+        ) : collectionError && cardsData.length === 0 ? (
+          <div className="text-center py-20 bg-red-50 dark:bg-red-900/10 rounded-[2.5rem] border-2 border-dashed border-red-200 dark:border-red-800 p-8">
+            <div className="bg-red-100 dark:bg-red-800 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Info className="text-red-500" size={40} />
+            </div>
+            <h3 className="text-xl font-bold text-red-900 dark:text-red-100">Dagelijkse limiet bereikt</h3>
+            <p className="text-red-600 dark:text-red-400 mt-2 max-w-md mx-auto">
+              Je hebt de dagelijkse gratis limiet voor het ophalen van gegevens uit de database bereikt. 
+              De teller wordt morgen (00:00 UTC) automatisch gereset.
+            </p>
+            <p className="text-red-400 text-xs mt-4">
+              Tip: Sluit de app als je deze niet gebruikt om onnodige verzoeken te voorkomen.
+            </p>
+          </div>
+        ) : cards.length === 0 && !loadingCollection ? (
           <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[2.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
             <div className="bg-slate-50 dark:bg-slate-800 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Plus className="text-slate-300" size={40} />
@@ -924,10 +1006,10 @@ export default function App() {
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
         <button 
           onClick={() => setShowScanner(true)}
-          className="flex items-center gap-3 px-8 py-4 bg-yellow-500 text-white font-bold rounded-full shadow-2xl shadow-yellow-500/40 hover:scale-105 active:scale-95 transition-all"
+          className="w-16 h-16 bg-yellow-500 text-white rounded-full shadow-2xl shadow-yellow-500/40 hover:scale-110 active:scale-90 transition-all flex items-center justify-center border-4 border-white dark:border-slate-900"
+          aria-label="Scan Nieuwe Kaart"
         >
-          <Camera size={24} />
-          Scan Nieuwe Kaart
+          <Camera size={32} />
         </button>
       </div>
 
