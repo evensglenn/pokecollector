@@ -35,6 +35,7 @@ service cloud.firestore {
       return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.setName is string && data.setName.size() > 0 &&
              data.cardNumber is string &&
+             data.year is string &&
              data.quantity is int && data.quantity >= 0 &&
              data.updatedAt is timestamp;
     }

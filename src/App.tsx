@@ -3,7 +3,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, increment, getDocFromServer } from 'firebase/firestore';
 import { auth, db, login, logout } from './lib/firebase';
-import { identifyCard, IdentifiedCard } from './lib/gemini';
+import { identifyCard, IdentifiedCard, fetchCardDetailsByText } from './lib/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LineChart, 
@@ -29,7 +29,10 @@ import {
   ArrowUpDown,
   Info,
   TrendingUp,
-  Layers
+  Layers,
+  Check,
+  RefreshCw,
+  Calendar
 } from 'lucide-react';
 import { cn } from './lib/utils';
 
@@ -52,11 +55,137 @@ const Logo = ({ className }: { className?: string }) => (
   </div>
 );
 
+const ScanResultPreview = ({ initialCard, imageUrl, onConfirm, onCancel }: { initialCard: IdentifiedCard, imageUrl: string, onConfirm: (card: IdentifiedCard) => void, onCancel: () => void }) => {
+  const [card, setCard] = useState<IdentifiedCard>(initialCard);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleUpdateDetails = async () => {
+    setIsUpdating(true);
+    try {
+      const details = await fetchCardDetailsByText(card.name, card.setName, card.cardNumber, card.year);
+      setCard(prev => ({ ...prev, ...details }));
+    } catch (err) {
+      console.error("Failed to update details:", err);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+    >
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+        <h3 className="text-xl font-bold dark:text-white">Scan Resultaat</h3>
+        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <X size={24} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex gap-4">
+          <div className="w-32 aspect-[3/4] bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden shadow-md shrink-0">
+            <img src={imageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          </div>
+          <div className="flex-1 space-y-3">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Naam</label>
+              <input 
+                value={card.name} 
+                onChange={e => setCard({...card, name: e.target.value})}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Set Naam</label>
+              <input 
+                value={card.setName} 
+                onChange={e => setCard({...card, setName: e.target.value})}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Kaart Nummer</label>
+            <input 
+              value={card.cardNumber} 
+              onChange={e => setCard({...card, cardNumber: e.target.value})}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Jaartal</label>
+            <input 
+              value={card.year} 
+              onChange={e => setCard({...card, year: e.target.value})}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">HP</label>
+            <input 
+              value={card.hp || ''} 
+              onChange={e => setCard({...card, hp: e.target.value})}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Type</label>
+            <input 
+              value={card.type} 
+              onChange={e => setCard({...card, type: e.target.value})}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold dark:text-white"
+            />
+          </div>
+        </div>
+
+        <button 
+          onClick={handleUpdateDetails}
+          disabled={isUpdating}
+          className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+        >
+          {isUpdating ? <Loader2 className="animate-spin" size={18} /> : <RefreshCw size={18} />}
+          Update overige data (waarde, etc.)
+        </button>
+
+        <div className="bg-yellow-50 dark:bg-yellow-500/10 p-4 rounded-2xl border border-yellow-100 dark:border-yellow-500/20">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Geschatte Waarde</span>
+            <span className="text-xl font-black text-yellow-600 dark:text-yellow-500">€{card.estimatedValue.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex gap-3">
+        <button 
+          onClick={onCancel}
+          className="flex-1 py-4 bg-white dark:bg-slate-900 text-slate-500 font-bold rounded-2xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          Annuleren
+        </button>
+        <button 
+          onClick={() => onConfirm(card)}
+          className="flex-1 py-4 bg-yellow-500 text-white font-bold rounded-2xl shadow-lg shadow-yellow-500/30 hover:bg-yellow-600 transition-all flex items-center justify-center gap-2"
+        >
+          <Check size={20} />
+          Toevoegen
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image: string) => void, onClose: () => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanResult, setScanResult] = useState<{ card: IdentifiedCard, image: string } | null>(null);
 
   useEffect(() => {
     async function startCamera() {
@@ -69,12 +198,14 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
         setError("Geen toegang tot camera. Controleer de machtigingen.");
       }
     }
-    startCamera();
+    if (!scanResult) {
+      startCamera();
+    }
     return () => {
       const stream = videoRef.current?.srcObject as MediaStream;
       stream?.getTracks().forEach(track => track.stop());
     };
-  }, []);
+  }, [scanResult]);
 
   const capture = async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -89,10 +220,11 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
     ctx?.drawImage(video, 0, 0);
     
     const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    const imageUrl = canvas.toDataURL('image/jpeg');
     
     try {
       const card = await identifyCard(base64);
-      onScan(card, canvas.toDataURL('image/jpeg'));
+      setScanResult({ card, image: imageUrl });
     } catch (err) {
       setError("Identificatie mislukt. Probeer het opnieuw met betere verlichting.");
     } finally {
@@ -105,47 +237,58 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
     >
-      <button onClick={onClose} className="absolute top-6 right-6 text-white p-2 hover:bg-white/10 rounded-full transition-colors">
-        <X size={32} />
-      </button>
+      {scanResult ? (
+        <ScanResultPreview 
+          initialCard={scanResult.card} 
+          imageUrl={scanResult.image} 
+          onConfirm={(card) => onScan(card, scanResult.image)}
+          onCancel={() => setScanResult(null)}
+        />
+      ) : (
+        <>
+          <button onClick={onClose} className="absolute top-6 right-6 text-white p-2 hover:bg-white/10 rounded-full transition-colors z-10">
+            <X size={32} />
+          </button>
 
-      <div className="relative w-full max-w-md aspect-[3/4] rounded-3xl overflow-hidden border-2 border-yellow-500/50 shadow-2xl shadow-yellow-500/20">
-        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-        <canvas ref={canvasRef} className="hidden" />
-        
-        {/* Scanning Overlay */}
-        <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none">
-          <div className="w-full h-full border-2 border-yellow-500/50 rounded-xl relative">
-             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-yellow-500 -mt-1 -ml-1 rounded-tl-lg" />
-             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-yellow-500 -mt-1 -mr-1 rounded-tr-lg" />
-             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-yellow-500 -mb-1 -ml-1 rounded-bl-lg" />
-             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-yellow-500 -mb-1 -mr-1 rounded-br-lg" />
+          <div className="relative w-full max-w-md aspect-[3/4] rounded-3xl overflow-hidden border-2 border-yellow-500/50 shadow-2xl shadow-yellow-500/20">
+            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+            <canvas ref={canvasRef} className="hidden" />
+            
+            {/* Scanning Overlay */}
+            <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none">
+              <div className="w-full h-full border-2 border-yellow-500/50 rounded-xl relative">
+                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-yellow-500 -mt-1 -ml-1 rounded-tl-lg" />
+                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-yellow-500 -mt-1 -mr-1 rounded-tr-lg" />
+                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-yellow-500 -mb-1 -ml-1 rounded-bl-lg" />
+                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-yellow-500 -mb-1 -mr-1 rounded-br-lg" />
+              </div>
+            </div>
+
+            {isScanning && (
+              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white gap-4">
+                <Loader2 className="animate-spin text-yellow-500" size={48} />
+                <p className="font-medium animate-pulse">Kaart Analyseren...</p>
+              </div>
+            )}
           </div>
-        </div>
 
-        {isScanning && (
-          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white gap-4">
-            <Loader2 className="animate-spin text-yellow-500" size={48} />
-            <p className="font-medium animate-pulse">Kaart Analyseren...</p>
-          </div>
-        )}
-      </div>
+          {error && (
+            <p className="mt-6 text-red-400 text-center bg-red-400/10 px-4 py-2 rounded-lg border border-red-400/20">{error}</p>
+          )}
 
-      {error && (
-        <p className="mt-6 text-red-400 text-center bg-red-400/10 px-4 py-2 rounded-lg border border-red-400/20">{error}</p>
+          <button 
+            onClick={capture}
+            disabled={isScanning}
+            className="mt-12 w-20 h-20 bg-yellow-500 rounded-full flex items-center justify-center shadow-xl shadow-yellow-500/40 hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100"
+          >
+            <Camera size={36} className="text-white" />
+          </button>
+          
+          <p className="mt-4 text-white/60 text-sm font-medium">Plaats de kaart binnen het kader</p>
+        </>
       )}
-
-      <button 
-        onClick={capture}
-        disabled={isScanning}
-        className="mt-12 w-20 h-20 bg-yellow-500 rounded-full flex items-center justify-center shadow-xl shadow-yellow-500/40 hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100"
-      >
-        <Camera size={36} className="text-white" />
-      </button>
-      
-      <p className="mt-4 text-white/60 text-sm font-medium">Plaats de kaart binnen het kader</p>
     </motion.div>
   );
 };
@@ -242,6 +385,10 @@ const CardDetail = ({ card, onUpdate, onDelete, onClose }: { card: PokemonCard, 
               <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
                 <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Nummer</div>
                 <div className="text-sm font-bold dark:text-slate-100">{card.cardNumber}</div>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Jaartal</div>
+                <div className="text-sm font-bold dark:text-slate-100">{card.year}</div>
               </div>
               <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
                 <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Zeldzaamheid</div>

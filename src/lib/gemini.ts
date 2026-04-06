@@ -14,7 +14,8 @@ export interface IdentifiedCard {
   rarity: string;
   type: string;
   hp?: string;
-  stage?: string;
+  stage: string;
+  year: string;
   weakness?: string;
   resistance?: string;
   retreatCost?: string;
@@ -38,6 +39,7 @@ export async function identifyCard(base64Image: string): Promise<IdentifiedCard>
             - type: Pokemon type (bijv. Fire, Water)
             - hp: HP van de Pokemon (indien van toepassing)
             - stage: Fase van de kaart (bijv. Basis, Fase 1, VMAX, GX)
+            - year: Jaartal van de kaart (meestal onderaan de kaart te vinden)
             - weakness: Zwakte (bijv. Water x2)
             - resistance: Weerstand (bijv. Fighting -20)
             - retreatCost: Terugtrekkosten (bijv. 2 Energie)
@@ -68,6 +70,7 @@ export async function identifyCard(base64Image: string): Promise<IdentifiedCard>
           type: { type: Type.STRING },
           hp: { type: Type.STRING },
           stage: { type: Type.STRING },
+          year: { type: Type.STRING },
           weakness: { type: Type.STRING },
           resistance: { type: Type.STRING },
           retreatCost: { type: Type.STRING },
@@ -85,7 +88,57 @@ export async function identifyCard(base64Image: string): Promise<IdentifiedCard>
             },
           },
         },
-        required: ["name", "setName", "cardNumber", "priceHistory"],
+        required: ["name", "setName", "cardNumber", "priceHistory", "year"],
+      },
+    },
+  });
+
+  return JSON.parse(response.text || "{}");
+}
+
+export async function fetchCardDetailsByText(name: string, setName: string, cardNumber: string, year: string): Promise<Partial<IdentifiedCard>> {
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Geef de details voor de volgende Pokemon kaart: ${name} uit de set ${setName} met nummer ${cardNumber} uit het jaar ${year}.
+    Geef de volgende details in JSON-formaat:
+    - rarity: Zeldzaamheid
+    - type: Pokemon type
+    - hp: HP
+    - stage: Fase
+    - weakness: Zwakte
+    - resistance: Weerstand
+    - retreatCost: Terugtrekkosten
+    - evolutionInfo: Evolutie info in het Nederlands
+    - estimatedValue: Gemiddelde marktwaarde in EUR (getal)
+    - priceHistory: Array van 6 objecten met 'month' en 'price' (getal in EUR)
+    
+    Geef ALLEEN het JSON-object terug.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          rarity: { type: Type.STRING },
+          type: { type: Type.STRING },
+          hp: { type: Type.STRING },
+          stage: { type: Type.STRING },
+          weakness: { type: Type.STRING },
+          resistance: { type: Type.STRING },
+          retreatCost: { type: Type.STRING },
+          evolutionInfo: { type: Type.STRING },
+          estimatedValue: { type: Type.NUMBER },
+          priceHistory: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                month: { type: Type.STRING },
+                price: { type: Type.NUMBER },
+              },
+              required: ["month", "price"],
+            },
+          },
+        },
       },
     },
   });

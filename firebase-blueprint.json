@@ -13,6 +13,7 @@
         "type": { "type": "string", "description": "Pokemon type (e.g., Fire, Water)" },
         "hp": { "type": "string", "description": "HP of the Pokemon" },
         "stage": { "type": "string", "description": "Card stage (e.g., Basic, Stage 1)" },
+        "year": { "type": "string", "description": "Year of the card" },
         "weakness": { "type": "string", "description": "Weakness of the Pokemon" },
         "resistance": { "type": "string", "description": "Resistance of the Pokemon" },
         "retreatCost": { "type": "string", "description": "Retreat cost" },
