@@ -287,8 +287,14 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
     setIsScanning(true);
     setError(null);
 
-    const canvas = canvasRef.current;
     const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
+      setError("Camera is nog niet klaar. Wacht een moment en probeer het opnieuw.");
+      setIsScanning(false);
+      return;
+    }
     
     // Optimize image size to save tokens and avoid TPM limits
     const maxDim = 1024;
@@ -297,12 +303,12 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
     
     if (width > height) {
       if (width > maxDim) {
-        height *= maxDim / width;
+        height = Math.round(height * (maxDim / width));
         width = maxDim;
       }
     } else {
       if (height > maxDim) {
-        width *= maxDim / height;
+        width = Math.round(width * (maxDim / height));
         height = maxDim;
       }
     }
@@ -310,10 +316,24 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    ctx?.drawImage(video, 0, 0, width, height);
+    if (!ctx) {
+      setError("Kon camera-beeld niet verwerken.");
+      setIsScanning(false);
+      return;
+    }
     
-    const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
-    const imageUrl = canvas.toDataURL('image/jpeg', 0.7);
+    ctx.drawImage(video, 0, 0, width, height);
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    const parts = dataUrl.split(',');
+    if (parts.length < 2) {
+      setError("Fout bij het genereren van afbeelding.");
+      setIsScanning(false);
+      return;
+    }
+    
+    const base64 = parts[1];
+    const imageUrl = dataUrl;
     
     try {
       const card = await identifyCard(base64);
@@ -328,6 +348,8 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
         setError("Te veel verzoeken (429). Wacht 60 seconden. Als dit blijft, is je dag-limiet (1500 scans) mogelijk bereikt.");
       } else if (errorMessage.includes('quota')) {
         setError("API Quota overschreden. Je hebt de dagelijkse limiet van 1500 scans bereikt.");
+      } else if (errorMessage.includes('input image') || errorMessage.includes('400')) {
+        setError("De AI kon de afbeelding niet verwerken. Zorg dat de kaart goed in beeld is en probeer het opnieuw.");
       } else {
         setError("Identificatie mislukt. Probeer het opnieuw met betere verlichting of controleer je internetverbinding.");
       }
