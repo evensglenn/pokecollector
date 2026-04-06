@@ -289,13 +289,31 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
 
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx?.drawImage(video, 0, 0);
     
-    const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-    const imageUrl = canvas.toDataURL('image/jpeg');
+    // Optimize image size to save tokens and avoid TPM limits
+    const maxDim = 1024;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    
+    if (width > height) {
+      if (width > maxDim) {
+        height *= maxDim / width;
+        width = maxDim;
+      }
+    } else {
+      if (height > maxDim) {
+        width *= maxDim / height;
+        height = maxDim;
+      }
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx?.drawImage(video, 0, 0, width, height);
+    
+    const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+    const imageUrl = canvas.toDataURL('image/jpeg', 0.7);
     
     try {
       const card = await identifyCard(base64);
@@ -307,9 +325,9 @@ const CardScanner = ({ onScan, onClose }: { onScan: (card: IdentifiedCard, image
       if (errorMessage.includes('403') || errorMessage.includes('API_KEY')) {
         setError("API Key fout (403). Controleer je Gemini API Key in de instellingen.");
       } else if (errorMessage.includes('429')) {
-        setError("Te veel verzoeken (429). Wacht een minuutje en probeer het opnieuw.");
+        setError("Te veel verzoeken (429). Wacht 60 seconden. Als dit blijft, is je dag-limiet (1500 scans) mogelijk bereikt.");
       } else if (errorMessage.includes('quota')) {
-        setError("API Quota overschreden. Probeer het later opnieuw.");
+        setError("API Quota overschreden. Je hebt de dagelijkse limiet van 1500 scans bereikt.");
       } else {
         setError("Identificatie mislukt. Probeer het opnieuw met betere verlichting of controleer je internetverbinding.");
       }

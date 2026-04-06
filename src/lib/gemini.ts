@@ -41,77 +41,86 @@ export interface IdentifiedCard {
   priceHistory: PricePoint[];
 }
 
-export async function identifyCard(base64Image: string): Promise<IdentifiedCard> {
+export async function identifyCard(base64Image: string, retries = 1): Promise<IdentifiedCard> {
   const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: [
-      {
-        parts: [
-          {
-            text: `Identificeer deze Pokemon kaart. Geef de volgende details in JSON-formaat:
-            - name: Naam van de Pokemon
-            - setName: Naam van de uitbreidingsset
-            - cardNumber: Kaartnummer (bijv. 12/102)
-            - rarity: Zeldzaamheid (bijv. Common, Rare, Holo Rare)
-            - type: Pokemon type (bijv. Fire, Water)
-            - hp: HP van de Pokemon (indien van toepassing)
-            - stage: Fase van de kaart (bijv. Basis, Fase 1, VMAX, GX)
-            - year: Jaartal van de kaart (meestal onderaan de kaart te vinden)
-            - weakness: Zwakte (bijv. Water x2)
-            - resistance: Weerstand (bijv. Fighting -20)
-            - retreatCost: Terugtrekkosten (bijv. 2 Energie)
-            - evolutionInfo: Korte info over de evolutiefase in het Nederlands (bijv. Evolueert van Charmander)
-            - estimatedValue: Gemiddelde marktwaarde in EUR (alleen het getal)
-            - priceHistory: Een array van 6 objecten met 'month' (bijv. 'Jan', 'Feb') en 'price' (getal in EUR) die de prijsontwikkeling van de afgelopen 6 maanden weergeven.
-            
-            Geef ALLEEN het JSON-object terug.`,
-          },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Image,
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          parts: [
+            {
+              text: `Identificeer deze Pokemon kaart. Geef de volgende details in JSON-formaat:
+              - name: Naam van de Pokemon
+              - setName: Naam van de uitbreidingsset
+              - cardNumber: Kaartnummer (bijv. 12/102)
+              - rarity: Zeldzaamheid (bijv. Common, Rare, Holo Rare)
+              - type: Pokemon type (bijv. Fire, Water)
+              - hp: HP van de Pokemon (indien van toepassing)
+              - stage: Fase van de kaart (bijv. Basis, Fase 1, VMAX, GX)
+              - year: Jaartal van de kaart (meestal onderaan de kaart te vinden)
+              - weakness: Zwakte (bijv. Water x2)
+              - resistance: Weerstand (bijv. Fighting -20)
+              - retreatCost: Terugtrekkosten (bijv. 2 Energie)
+              - evolutionInfo: Korte info over de evolutiefase in het Nederlands (bijv. Evolueert van Charmander)
+              - estimatedValue: Gemiddelde marktwaarde in EUR (alleen het getal)
+              - priceHistory: Een array van 6 objecten met 'month' (bijv. 'Jan', 'Feb') en 'price' (getal in EUR) die de prijsontwikkeling van de afgelopen 6 maanden weergeven.
+              
+              Geef ALLEEN het JSON-object terug.`,
             },
-          },
-        ],
-      },
-    ],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          setName: { type: Type.STRING },
-          cardNumber: { type: Type.STRING },
-          rarity: { type: Type.STRING },
-          type: { type: Type.STRING },
-          hp: { type: Type.STRING },
-          stage: { type: Type.STRING },
-          year: { type: Type.STRING },
-          weakness: { type: Type.STRING },
-          resistance: { type: Type.STRING },
-          retreatCost: { type: Type.STRING },
-          evolutionInfo: { type: Type.STRING },
-          estimatedValue: { type: Type.NUMBER },
-          priceHistory: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                month: { type: Type.STRING },
-                price: { type: Type.NUMBER },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64Image,
               },
-              required: ["month", "price"],
+            },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            setName: { type: Type.STRING },
+            cardNumber: { type: Type.STRING },
+            rarity: { type: Type.STRING },
+            type: { type: Type.STRING },
+            hp: { type: Type.STRING },
+            stage: { type: Type.STRING },
+            year: { type: Type.STRING },
+            weakness: { type: Type.STRING },
+            resistance: { type: Type.STRING },
+            retreatCost: { type: Type.STRING },
+            evolutionInfo: { type: Type.STRING },
+            estimatedValue: { type: Type.NUMBER },
+            priceHistory: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  month: { type: Type.STRING },
+                  price: { type: Type.NUMBER },
+                },
+                required: ["month", "price"],
+              },
             },
           },
+          required: ["name", "setName", "cardNumber", "priceHistory", "year"],
         },
-        required: ["name", "setName", "cardNumber", "priceHistory", "year"],
       },
-    },
-  });
+    });
 
-  return JSON.parse(response.text || "{}");
+    return JSON.parse(response.text || "{}");
+  } catch (error: any) {
+    if (error.message?.includes('429') && retries > 0) {
+      console.log("429 error, retrying in 3 seconds...");
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      return identifyCard(base64Image, retries - 1);
+    }
+    throw error;
+  }
 }
 
 export async function fetchCardDetailsByText(name: string, setName: string, cardNumber: string, year: string): Promise<Partial<IdentifiedCard>> {
