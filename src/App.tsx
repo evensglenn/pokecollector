@@ -800,34 +800,34 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Controls */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex flex-col md:flex-row gap-3 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
               placeholder="Zoeken op naam of set..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-yellow-500 outline-none transition-all font-medium dark:text-slate-100"
+              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none transition-all font-medium text-sm dark:text-slate-100"
             />
           </div>
-          <div className="flex gap-2">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <div className="grid grid-cols-2 gap-2 md:flex md:gap-2">
+            <div className="relative flex-1 md:flex-none">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <select 
                 value={filterType}
                 onChange={e => setFilterType(e.target.value)}
-                className="pl-10 pr-8 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-yellow-500 outline-none appearance-none font-bold text-sm dark:text-slate-100"
+                className="w-full pl-9 pr-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none appearance-none font-bold text-xs dark:text-slate-100"
               >
                 {types.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div className="relative">
-              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <div className="relative flex-1 md:flex-none">
+              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <select 
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value as any)}
-                className="pl-10 pr-8 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-yellow-500 outline-none appearance-none font-bold text-sm dark:text-slate-100"
+                className="w-full pl-9 pr-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none appearance-none font-bold text-xs dark:text-slate-100"
               >
                 <option value="newest">Nieuwste</option>
                 <option value="name">Naam</option>
@@ -881,7 +881,7 @@ export default function App() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
             <AnimatePresence mode="popLayout">
               {cards.map((card) => (
                 <motion.div
@@ -891,27 +891,27 @@ export default function App() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   onClick={() => setSelectedCard(card)}
-                  className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer border border-slate-100 dark:border-slate-800"
+                  className="group relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer border border-slate-100 dark:border-slate-800"
                 >
                   <div className="aspect-[3/4] bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
                     {card.imageUrl ? (
                       <img src={card.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Zap className="text-slate-300" size={48} />
+                        <Zap className="text-slate-300" size={32} />
                       </div>
                     )}
-                    <div className="absolute top-3 right-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2 py-1 rounded-lg text-xs font-bold shadow-sm">
+                    <div className="absolute top-2 right-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[10px] font-bold shadow-sm">
                       x{card.quantity}
                     </div>
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4 pt-10">
-                      <div className="text-white text-sm font-bold truncate">{card.name}</div>
-                      <div className="text-white/70 text-[10px] font-bold uppercase tracking-wider">{card.setName}</div>
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-8">
+                      <div className="text-white text-xs font-bold truncate">{card.name}</div>
+                      <div className="text-white/70 text-[9px] font-bold uppercase tracking-wider truncate">{card.setName}</div>
                     </div>
                   </div>
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="text-yellow-500 font-bold">€{card.estimatedValue.toFixed(2)}</div>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-yellow-500 transition-colors" />
+                  <div className="p-2.5 flex items-center justify-between">
+                    <div className="text-yellow-500 font-bold text-sm">€{card.estimatedValue.toFixed(2)}</div>
+                    <ChevronRight size={14} className="text-slate-300 group-hover:text-yellow-500 transition-colors" />
                   </div>
                 </motion.div>
               ))}
